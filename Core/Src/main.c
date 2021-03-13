@@ -63,7 +63,7 @@ static void MX_TIM12_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-//DENUG PRINTF
+//DEBUG PRINTF
 int __io_putchar(int ch)
 {
 	char v;
@@ -73,113 +73,91 @@ int __io_putchar(int ch)
 
 #include "powerstep01_def.h"
 
-
-void setHiZ(void)
+uint8_t xfer_byte(uint8_t byte)
 {
-  uint8_t tx = POWERSTEP01_HARD_HIZ;
+	uint8_t tx = byte;
+	uint8_t rx = 0;
+	HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
+	HAL_SPI_TransmitReceive(&hspi1, &tx, &rx, 1, 1000);
+	HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
+	return rx;
+}
 
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
-  HAL_SPI_Transmit(&hspi1, &tx,1,1000);
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
+void setHardStop(void)
+{
+  xfer_byte(POWERSTEP01_HARD_STOP);
+}
+
+void setSoftStop(void)
+{
+  xfer_byte(POWERSTEP01_SOFT_STOP);
+}
+
+void setHardHiZ(void)
+{
+  xfer_byte(POWERSTEP01_HARD_HIZ);
+}
+
+void setSoftHiZ(void)
+{
+  xfer_byte(POWERSTEP01_SOFT_HIZ);
 }
 
 
 uint16_t getStatus(void)
 {
-  uint8_t tx = 0;
   uint8_t byte1 = 0;
   uint8_t byte2 = 0;
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
 
-  tx = POWERSTEP01_GET_STATUS;
-//  tx = POWERSTEP01_GET_PARAM | POWERSTEP01_CONFIG;
-  HAL_SPI_TransmitReceive(&hspi1, &tx, &byte1, 1,1000);
-  tx = 0;
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
-  HAL_SPI_TransmitReceive(&hspi1, &tx, &byte1, 1,1000);
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
-  HAL_SPI_TransmitReceive(&hspi1, &tx, &byte2, 1,1000);
+  xfer_byte(POWERSTEP01_GET_STATUS);
 
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
+  byte1 = xfer_byte(0);
+  byte2 = xfer_byte(0);
+
   return ((uint16_t)(byte1 << 8)) | byte2;
+}
+
+
+void Move(int32_t steps)
+{
+	//check if steps value exeeds limits
+	//send data
+	if(steps > 0)
+		xfer_byte(POWERSTEP01_MOVE);
+	else
+		xfer_byte(POWERSTEP01_MOVE | 1);
+	xfer_byte((uint8_t)((steps & 0x00ff0000) >> 16) );
+	xfer_byte((uint8_t)((steps & 0x0000ff00) >> 8) );
+	xfer_byte((uint8_t)((steps & 0x000000ff) >> 0) );
+	xfer_byte(0);
 }
 
 void test_move(void)
 {
 
-  uint8_t tx = 0;
-  uint8_t rx = 0;
-  uint8_t byte2 = 0;
-
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
-
-  tx = POWERSTEP01_MOVE;
-  HAL_SPI_TransmitReceive(&hspi1, &tx, &rx, 1,1000);
-
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
-
-
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
-  tx = 0;
-  HAL_SPI_TransmitReceive(&hspi1, &tx, &rx, 1,1000);
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
-
-
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
-  tx = 200;
-  HAL_SPI_TransmitReceive(&hspi1, &tx, &rx, 1,1000);
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
-
-
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
-  tx = 0;
-  HAL_SPI_TransmitReceive(&hspi1, &tx, &rx, 1,1000);
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
+	move(1000);
 }
 
 void set_param8(powerstep01_Registers_t param, uint8_t value)
 {
-  uint8_t tx = 0;
-  uint8_t rx = 0;
-
-  tx = POWERSTEP01_SET_PARAM | param;
-
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
-  HAL_SPI_TransmitReceive(&hspi1, &tx, &rx, 1,1000);
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
-
-  tx = value;
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
-  HAL_SPI_TransmitReceive(&hspi1, &tx, &rx, 1,1000);
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
-
+	xfer_byte(POWERSTEP01_SET_PARAM | param);
+	xfer_byte(value);
 }
 
 
 void set_param16(powerstep01_Registers_t param, uint16_t value)
 {
-  uint8_t tx = 0;
-  uint8_t rx = 0;
+	xfer_byte(POWERSTEP01_SET_PARAM | param);
+	xfer_byte((uint8_t)((value & 0xff00) >> 8));
+	xfer_byte((uint8_t)((value & 0x00ff) >> 0));
+}
 
-  tx = POWERSTEP01_SET_PARAM | param;
-
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
-  HAL_SPI_TransmitReceive(&hspi1, &tx, &rx, 1,1000);
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
-
-  tx = (uint8_t)(value >> 8);
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
-  HAL_SPI_TransmitReceive(&hspi1, &tx, &rx, 1,1000);
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
-
-
-  tx = (uint8_t)(value & 0x00ff);
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
-  HAL_SPI_TransmitReceive(&hspi1, &tx, &rx, 1,1000);
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
-
+void set_param24(powerstep01_Registers_t param, uint32_t value)
+{
+	xfer_byte(POWERSTEP01_SET_PARAM | param);
+	xfer_byte((uint8_t)((value & 0x00ff0000) >> 16));
+	xfer_byte((uint8_t)((value & 0x0000ff00) >> 8));
+	xfer_byte((uint8_t)((value & 0x000000ff) >> 0));
 }
 
 void init_stepper(void)
@@ -257,7 +235,7 @@ int main(void)
   while (1)
   {
     printf("before test = 0x%x\r\n", status);
-    test_move();
+    move(1000);
     HAL_Delay(10);
     status = getStatus();
     printf("status = 0x%x\r\n", status);
@@ -265,8 +243,16 @@ int main(void)
     setHiZ();
     status = getStatus();
     printf("status = 0x%x\r\n", status);
-    status = getStatus();
-    printf("status = 0x%x\r\n", status);
+    printf("before test = 0x%x\r\n", status);
+	move(-1000);
+	HAL_Delay(10);
+	status = getStatus();
+	printf("status = 0x%x\r\n", status);
+	HAL_Delay(1000);
+	setHiZ();
+	status = getStatus();
+	printf("status = 0x%x\r\n", status);
+
 
 
     /* USER CODE END WHILE */
