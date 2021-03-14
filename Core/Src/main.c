@@ -95,6 +95,14 @@ void init_stepper_motor(void)
 	set_param(POWERSTEP01_STEP_MODE, 0);
 	set_param(POWERSTEP01_CONFIG, 0x3e08);
 }
+
+void powerstep_reset_state(uint8_t s)
+{
+	if(s)
+		HAL_GPIO_WritePin(RST_GPIO_Port, RST_Pin, GPIO_PIN_SET);
+	else
+		HAL_GPIO_WritePin(RST_GPIO_Port, RST_Pin, GPIO_PIN_RESET);
+}
 /* USER CODE END 0 */
 
 /**
@@ -130,14 +138,14 @@ int main(void)
   MX_TIM12_Init();
   /* USER CODE BEGIN 2 */
 
-
+  powerstep_reset_state(1);
 
   printf("powerstep01 bringup!\r\n");
   uint16_t status = 0;
   HAL_Delay(1);
 
 
-  HAL_GPIO_WritePin(RST_GPIO_Port, RST_Pin, GPIO_PIN_SET);
+
   HAL_Delay(1);
 
   setHardHiZ();

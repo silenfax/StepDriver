@@ -99,6 +99,16 @@ void setSoftHiZ(void)
 	xfer_byte(POWERSTEP01_SOFT_HIZ);
 }
 
+
+
+__attribute__((weak)) void powerstep_reset_state(uint8_t s)
+{
+//	if(s)
+//		HAL_GPIO_WritePin(RST_GPIO_Port, RST_Pin, GPIO_PIN_SET);
+//	else
+//		HAL_GPIO_WritePin(RST_GPIO_Port, RST_Pin, GPIO_PIN_RESET);
+}
+
 void Move(int32_t steps)
 {
 	//check if steps value exeeds limits
