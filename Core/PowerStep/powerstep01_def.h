@@ -8,6 +8,7 @@
 #ifndef INC_POWERSTEP01_DEF_H_
 #define INC_POWERSTEP01_DEF_H_
 
+#include <stdint.h>
 
 /// Bit mask for STATUS Register of PowerStep01²
 typedef enum {

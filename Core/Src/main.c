@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -71,7 +72,7 @@ int __io_putchar(int ch)
 	return HAL_UART_Transmit(&huart6, (uint8_t *)&v, 1 ,1000);
 }
 
-#include "powerstep01_def.h"
+#include "powerstep01_lib.h"
 
 uint8_t xfer_byte(uint8_t byte)
 {
@@ -83,94 +84,16 @@ uint8_t xfer_byte(uint8_t byte)
 	return rx;
 }
 
-void setHardStop(void)
+void init_stepper_motor(void)
 {
-  xfer_byte(POWERSTEP01_HARD_STOP);
-}
-
-void setSoftStop(void)
-{
-  xfer_byte(POWERSTEP01_SOFT_STOP);
-}
-
-void setHardHiZ(void)
-{
-  xfer_byte(POWERSTEP01_HARD_HIZ);
-}
-
-void setSoftHiZ(void)
-{
-  xfer_byte(POWERSTEP01_SOFT_HIZ);
-}
-
-
-uint16_t getStatus(void)
-{
-  uint8_t byte1 = 0;
-  uint8_t byte2 = 0;
-
-  xfer_byte(POWERSTEP01_GET_STATUS);
-
-  byte1 = xfer_byte(0);
-  byte2 = xfer_byte(0);
-
-  return ((uint16_t)(byte1 << 8)) | byte2;
-}
-
-
-void Move(int32_t steps)
-{
-	//check if steps value exeeds limits
-	//send data
-	if(steps > 0)
-		xfer_byte(POWERSTEP01_MOVE);
-	else
-		xfer_byte(POWERSTEP01_MOVE | 1);
-	xfer_byte((uint8_t)((steps & 0x00ff0000) >> 16) );
-	xfer_byte((uint8_t)((steps & 0x0000ff00) >> 8) );
-	xfer_byte((uint8_t)((steps & 0x000000ff) >> 0) );
-	xfer_byte(0);
-}
-
-void test_move(void)
-{
-
-	move(1000);
-}
-
-void set_param8(powerstep01_Registers_t param, uint8_t value)
-{
-	xfer_byte(POWERSTEP01_SET_PARAM | param);
-	xfer_byte(value);
-}
-
-
-void set_param16(powerstep01_Registers_t param, uint16_t value)
-{
-	xfer_byte(POWERSTEP01_SET_PARAM | param);
-	xfer_byte((uint8_t)((value & 0xff00) >> 8));
-	xfer_byte((uint8_t)((value & 0x00ff) >> 0));
-}
-
-void set_param24(powerstep01_Registers_t param, uint32_t value)
-{
-	xfer_byte(POWERSTEP01_SET_PARAM | param);
-	xfer_byte((uint8_t)((value & 0x00ff0000) >> 16));
-	xfer_byte((uint8_t)((value & 0x0000ff00) >> 8));
-	xfer_byte((uint8_t)((value & 0x000000ff) >> 0));
-}
-
-void init_stepper(void)
-{
-
-  set_param8(POWERSTEP01_KVAL_HOLD, 64);
-  set_param8(POWERSTEP01_KVAL_RUN, 64);
-  set_param8(POWERSTEP01_KVAL_ACC, 64);
-  set_param8(POWERSTEP01_KVAL_DEC, 64);
-  set_param8(POWERSTEP01_OCD_TH, 31);
-  set_param8(POWERSTEP01_STALL_TH, 31);
-  set_param8(POWERSTEP01_STEP_MODE, 0);
-  set_param16(POWERSTEP01_CONFIG, 0x3e08);
+	set_param(POWERSTEP01_KVAL_HOLD, 64);
+	set_param(POWERSTEP01_KVAL_RUN, 64);
+	set_param(POWERSTEP01_KVAL_ACC, 64);
+	set_param(POWERSTEP01_KVAL_DEC, 64);
+	set_param(POWERSTEP01_OCD_TH, 31);
+	set_param(POWERSTEP01_STALL_TH, 31);
+	set_param(POWERSTEP01_STEP_MODE, 0);
+	set_param(POWERSTEP01_CONFIG, 0x3e08);
 }
 /* USER CODE END 0 */
 
@@ -211,48 +134,36 @@ int main(void)
 
   printf("powerstep01 bringup!\r\n");
   uint16_t status = 0;
-  //HAL_TIM_PWM_Start(&htim12, TIM_CHANNEL_1);
   HAL_Delay(1);
 
 
   HAL_GPIO_WritePin(RST_GPIO_Port, RST_Pin, GPIO_PIN_SET);
   HAL_Delay(1);
 
-  setHiZ();
-  HAL_Delay(1);
-  init_stepper();
-  HAL_Delay(1);
-  setHiZ();
+  setHardHiZ();
+  init_stepper_motor();
+  setHardHiZ();
   HAL_Delay(1);
 
- // test_move();
 
-  HAL_Delay(1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    printf("before test = 0x%x\r\n", status);
-    move(1000);
-    HAL_Delay(10);
-    status = getStatus();
-    printf("status = 0x%x\r\n", status);
-    HAL_Delay(1000);
-    setHiZ();
-    status = getStatus();
-    printf("status = 0x%x\r\n", status);
-    printf("before test = 0x%x\r\n", status);
-	move(-1000);
-	HAL_Delay(10);
-	status = getStatus();
-	printf("status = 0x%x\r\n", status);
-	HAL_Delay(1000);
-	setHiZ();
-	status = getStatus();
-	printf("status = 0x%x\r\n", status);
 
+		Move(1000);
+
+		do {
+		status = getStatus();
+		}while((status & POWERSTEP01_STATUS_MOT_STATUS) != 0);
+
+		Move(-1000);
+
+		do {
+		status = getStatus();
+		}while((status & POWERSTEP01_STATUS_MOT_STATUS) != 0);
 
 
     /* USER CODE END WHILE */
